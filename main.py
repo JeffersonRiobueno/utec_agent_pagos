@@ -10,15 +10,23 @@ from langchain_openai import ChatOpenAI
 from langchain_community.chat_models import ChatOllama
 from langchain.agents import create_tool_calling_agent, AgentExecutor
 
-from vector.vector import products_tool
-
 load_dotenv()
 
 SYSTEM_PROMPT = (
-    "Eres un asistente experto en buscar productos de la tienda de zapatos. "
-    "Ayudas a usuarios a responder preguntas sobre productos y encontrar información relevante. "
-    "Usas herramientas para buscar información relevante y responder consultas de usuarios. "
-    "Cuando tengas la respuesta, proporciona la información del producto y su stock si está disponible."
+    """Eres Maria una asistente de la tienda Tu Tiendita.com, tu función es resolver preguntas o dudas relacionado a las formas de pago de la tienda 
+
+[Formas de Pago]
+- Yape, plin o con tarjeta desde la pagina web
+- Pagos contra entrega solo en Lima
+- Los envios a provincia se realizan previo pago
+- Solo se hace envio dentro de Peru
+
+[Yape/Plim]
+- Los pagos por Yape o Plin se deben realizar al numero 999 999 999 a nombre de Juanito Perez
+- Enviar el comprobante de pago por whatsapp al mismo numero
+- Una vez realizado el pago enviar el comprobante por whatsapp
+
+"""
 )
 
 app = FastAPI()
@@ -69,11 +77,11 @@ def make_llm(
 
     raise ValueError(f"Proveedor LLM no soportado: {provider}. Usa: openai | ollama | gemini")
 
-@app.post("/products_agent_search", response_model=ProductAgentResponse)
-def products_agent_endpoint(req: ProductAgentRequest):
-    
+@app.post("/payment_agent", response_model=ProductAgentResponse)
+def payment_agent_endpoint(req: ProductAgentRequest):
+
     llm = make_llm(req.provider, req.model, req.temperature)
-    tools = [products_tool]
+    tools = []
     prompt = ChatPromptTemplate.from_messages([
         ("system", SYSTEM_PROMPT),
         ("human", "{input}"),

@@ -1,11 +1,11 @@
 services:
-  agent_product:
+  agent_payment:
     build: .
     restart: always
     env_file:
       - .env
     ports:
-      - "8130:8000"
+      - "8150:8000"
     volumes:
       - .:/app
 

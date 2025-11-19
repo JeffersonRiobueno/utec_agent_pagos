@@ -1,93 +1,91 @@
-# 
+# Agente de Consultas sobre Formas de Pago
 
-Agente de búsqueda de productos con RAG y clasificación automática por IA. Compatible con Gemini, OpenAI y Ollama.
+Agente desarrollado para resolver consultas sobre formas de pago de la tienda Tu Tiendita.com. Compatible con Gemini, OpenAI y Ollama.
 
 ---
 
-## Comandos recomendados para levantar todo el stack
+## Descripción
 
-1. **Instala podman-compose si no lo tienes:**
-   ```
-   pip install podman-compose
-   ```
+Este agente utiliza IA para responder preguntas relacionadas con las formas de pago disponibles en la tienda. Incluye información sobre pagos con Yape, Plin, tarjeta, pagos contra entrega, y políticas de envío.
 
-2. **Levanta Qdrant (versión compatible) con Podman:**
-   ```
-   podman-compose -f /docker-compose-qdrant.yml up -d
-   ```
+## Formas de Pago Soportadas
 
-3. **Crea y activa el entorno virtual de Python:**
+- Yape, Plin o con tarjeta desde la página web
+- Pagos contra entrega solo en Lima
+- Los envíos a provincia se realizan previo pago
+- Solo se hace envío dentro de Perú
+
+Para Yape/Plin:
+- Pago al número 999 999 999 a nombre de Juanito Perez
+- Enviar comprobante de pago por WhatsApp al mismo número
+
+---
+
+## Instalación y Configuración
+
+1. **Crea y activa el entorno virtual de Python:**
    ```
    python3 -m venv .venv
    source .venv/bin/activate
    ```
 
-4. **Instala dependencias del proyecto:**
+2. **Instala dependencias:**
    ```
    pip install -r requirements.txt
    ```
 
-5. **Configura el archivo `.env` en `/`**  
-   - Usa `EMBEDDINGS_PROVIDER=ollama` y `OLLAMA_MODEL=nomic-embed-text` para embeddings locales.
-   - Usa `LLM_PROVIDER=gemini` para clasificación con Gemini.
+3. **Configura el archivo `.env`:**
+   - `LLM_PROVIDER`: openai, ollama, o gemini (por defecto: openai)
+   - `MODEL_NAME`: Nombre del modelo (por defecto: gpt-4o-mini)
+   - `MODEL_TEMPERATURE`: Temperatura del modelo (por defecto: 0.2)
+   - Para OpenAI: `OPENAI_API_KEY`
+   - Para Gemini: `GOOGLE_API_KEY`
+   - Para Ollama: `OLLAMA_BASE_URL` (por defecto: http://localhost:11434)
 
-6. **Asegúrate de tener el modelo de embeddings en Ollama:**
-   ```
-   ollama pull nomic-embed-text
-   ```
-
-7. **Ingesta productos en Qdrant:**
-   ```
-   python3 scripts_ingesta/ingest_catalog.py
-   ```
-
-8. **(Opcional) Verifica los productos ingresados:**
-   ```
-   python3 scripts_ingesta/list_qdrant_products.py
-   ```
-
-9. **Levanta el agente de productos (API FastAPI):**
+4. **Ejecuta el agente:**
    ```
    python3 main.py
    ```
 
----
-
-## Notas importantes
-
-- Si ves un warning deprecado sobre `OllamaEmbeddings`, puedes ignorarlo por ahora.  
-  Cuando actualices todos los paquetes langchain, cambia el import a:
-  ```python
-  from langchain_ollama import OllamaEmbeddings
-  ```
-- Qdrant debe estar corriendo en la versión 1.15.1 para ser compatible con el cliente Python.
-- Si usas Podman, asegúrate de tener podman-compose instalado.
-- El archivo de catálogo debe estar en `/data/catalog_samples.csv`.
+La API estará disponible en `http://localhost:8000`.
 
 ---
 
-## Estructura
+## Uso de la API
 
-- `main.py`: API principal del agente de productos.
-- `vector/`: Lógica de búsqueda vectorial y clasificación por IA.
-- `scripts_ingesta/`: Scripts para ingestar y listar productos en Qdrant.
-  - `ingest_catalog.py`: Script para ingestar productos.
-  - `list_qdrant_products.py`: Script para listar productos ya ingresados.
-- `.env.example`: Variables de entorno de ejemplo.
-- `docker-compose-qdrant.yml`: Compose para levantar Qdrant.
-- `data/`: Carpeta para el archivo de catálogo CSV.
+Envía una solicitud POST a `/payment_agent_search` con el siguiente JSON:
+
+```json
+{
+  "text": "¿Cuáles son las formas de pago disponibles?",
+  "provider": "openai",
+  "model": "gpt-4o-mini",
+  "temperature": 0.2
+}
+```
+
+Respuesta:
+
+```json
+{
+  "result": "Respuesta del agente..."
+}
+```
 
 ---
 
-## Troubleshooting
+## Notas
 
-- **Qdrant version mismatch:**  
-  Si ves un error de incompatibilidad de versiones, asegúrate de que Qdrant esté en la versión 1.15.1 (`docker-compose-qdrant.yml` ya lo especifica).
-- **Ollama model not found:**  
-  Si ves un error de modelo no encontrado, ejecuta `ollama pull nomic-embed-text`.
-- **DeprecationWarning de embeddings:**  
-  Es solo un warning, puedes ignorarlo hasta actualizar todos los paquetes langchain.
+- Asegúrate de tener las claves API configuradas para el proveedor seleccionado.
+- Para Ollama, asegúrate de que el servidor esté corriendo localmente.
 
 ---
 
-Sigue estos pasos y comandos para tener todo el stack funcionando correctamente.
+## Estructura del Proyecto
+
+- `main.py`: API principal del agente de pagos.
+- `requirements.txt`: Dependencias de Python.
+- `Dockerfile`: Para contenerización.
+- `docker-compose.yml`: Configuración de Docker.
+
+---
