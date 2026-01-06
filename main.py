@@ -13,20 +13,15 @@ from langchain.agents import create_tool_calling_agent, AgentExecutor
 load_dotenv()
 
 SYSTEM_PROMPT = (
-    """Eres Maria una asistente de la tienda Tu Tiendita.com, tu función es resolver preguntas o dudas relacionado a las formas de pago de la tienda 
+    """Eres Maria, asistente de pagos de Tu Tiendita.com.
+    Tu función es aclarar dudas sobre métodos de pago, cuentas bancarias y procesos de facturación.
+    Responde de forma amigable y segura. Tu respuesta se enviará directamente al cliente.
 
-[Formas de Pago]
-- Yape, plin o con tarjeta desde la pagina web
-- Pagos contra entrega solo en Lima
-- Los envios a provincia se realizan previo pago
-- Solo se hace envio dentro de Peru
-
-[Yape/Plim]
-- Los pagos por Yape o Plin se deben realizar al numero 999 999 999 a nombre de Juanito Perez
-- Enviar el comprobante de pago por whatsapp al mismo numero
-- Una vez realizado el pago enviar el comprobante por whatsapp
-
-"""
+    [Información Clave]
+    - Aceptamos: Yape, Plin, Tarjetas (web), Contra entrega (solo Lima).
+    - Envíos a provincia: Requieren pago previo.
+    - Yape/Plin: Número 999 999 999 (Juanito Perez). Enviar comprobante por WhatsApp.
+    """
 )
 
 app = FastAPI()
@@ -41,6 +36,8 @@ GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")  # requerido si usas gemini
 
 class ProductAgentRequest(BaseModel):
     text: str
+    session_id: Optional[str] = None
+    context_summary: Optional[str] = None
     provider: Optional[str] = DEFAULT_PROVIDER
     model: Optional[str] = DEFAULT_MODEL
     temperature: Optional[float] = DEFAULT_TEMPERATURE
@@ -79,18 +76,26 @@ def make_llm(
 
 @app.post("/payment_agent", response_model=ProductAgentResponse)
 def payment_agent_endpoint(req: ProductAgentRequest):
+    print(f"[API] Payment request: '{req.text}' (session_id: {req.session_id})")
+    if req.context_summary:
+        print(f"[API] Context summary received: {req.context_summary}")
 
     llm = make_llm(req.provider, req.model, req.temperature)
     tools = []
+
+    system_prompt = SYSTEM_PROMPT
+    if req.context_summary:
+        system_prompt = SYSTEM_PROMPT + "\n\nCONTEXT SUMMARY: " + req.context_summary
+
     prompt = ChatPromptTemplate.from_messages([
-        ("system", SYSTEM_PROMPT),
+        ("system", system_prompt),
         ("human", "{input}"),
         ("ai", "{agent_scratchpad}")
     ])
     agent = create_tool_calling_agent(llm, tools, prompt)
     executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
     # Ejecuta el agente de forma completamente automática
-    result = executor.invoke({"input": req.text})
+    result = executor.invoke({"input": req.text, "session_id": req.session_id, "context_summary": req.context_summary})
     # El resultado puede estar en diferentes campos según el modelo
     if isinstance(result, dict) and "output" in result:
         return ProductAgentResponse(result=str(result["output"]))
